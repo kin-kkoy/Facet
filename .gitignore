@@ -1,0 +1,17 @@
+# Node deps
+node_modules/
+
+# Frontend build output
+dist/
+
+# Rust / Tauri build
+**/target/
+
+# .NET / C# engine build
+**/bin/
+**/obj/
+
+# Logs & OS cruft
+*.log
+.DS_Store
+EOF

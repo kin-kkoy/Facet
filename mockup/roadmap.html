@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Facet — AI Roadmap Branching Concept</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg: #09090b;
+      --panel: #121217;
+      --border: #272730;
+      --text: #e2e8f0;
+      --text-dim: #64748b;
+      --locked: #1e1e24;
+      --locked-border: #33333d;
+      --locked-icon: #555566;
+      --path-locked: #272730;
+      --mono: 'JetBrains Mono', 'Courier New', monospace;
+    }
+    
+    body {
+      margin: 0; padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .topbar {
+      height: 50px;
+      border-bottom: 1px dashed var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      font-family: var(--mono);
+      font-size: 12px;
+      justify-content: space-between;
+      background: var(--panel);
+      z-index: 10;
+    }
+
+    .main { flex: 1; display: flex; position: relative; }
+
+    .explain-panel {
+      width: 350px;
+      border-right: 1px dashed var(--border);
+      background: var(--bg);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      z-index: 10;
+    }
+    
+    .explain-panel h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin: 0; color: var(--text); font-family: var(--mono); }
+    .explain-panel p { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin: 0; }
+    
+    .ai-box { border: 1px solid var(--border); background: var(--panel); border-radius: 4px; padding: 12px; }
+    .ai-box-title { font-family: var(--mono); font-size: 10px; color: #c678dd; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;}
+    .ai-code { font-family: var(--mono); font-size: 11px; color: var(--text); line-height: 1.4; }
+
+    /* Map Area (Viewport) */
+    .map-area {
+      flex: 1;
+      position: relative;
+      background: var(--bg);
+      overflow: hidden;
+      cursor: grab;
+    }
+    .map-area:active { cursor: grabbing; }
+
+    /* Pan Container */
+    #panContainer {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      transform-origin: 0 0;
+    }
+
+    /* Nodes */
+    .node {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      z-index: 5;
+    }
+
+    .node-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 2px solid var(--locked-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: var(--locked-icon);
+      transition: all 0.2s ease;
+    }
+
+    .node-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-align: center;
+      width: 140px;
+    }
+
+    /* Lines Container */
+    #lines {
+      position: absolute;
+      top: 0; left: 0;
+      width: 4000px; height: 4000px; /* Large virtual canvas */
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    line { stroke-width: 2.5; transition: all 0.3s ease; }
+    .path-locked { stroke: var(--path-locked); stroke-dasharray: 6 6; }
+    
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand" style="color:var(--text)">FACET // CROSSROADS ROADMAP</div>
+    <div style="color:var(--text-dim)">Drag canvas to pan</div>
+  </div>
+
+  <div class="main">
+    <div class="explain-panel">
+      <h2>Curriculum Branching</h2>
+      <p>This demonstrates a complex curriculum generated from your prompt. The AI understood you wanted <b>C# fundamentals</b> leading up to a <b>Career Crossroads</b>: Web Dev vs Game Dev.</p>
+
+      <div class="ai-box">
+        <div class="ai-box-title">Your Prompt</div>
+        <div class="ai-code" style="font-style:italic">"Generate me a very detailed C# + .NET curriculum where I can make my own stuff and be ready for jobs. I also want to be able to make games on the side using Unity... Since there are 2 paths (web dev and game dev), there should be a branch."</div>
+      </div>
+
+      <div class="ai-box" style="border-color:#61afef">
+        <div class="ai-box-title" style="color:#61afef">Visual Rules (As Requested)</div>
+        <div class="ai-code">
+          1. <b>Locked nodes</b> are grayed out (no colors).<br><br>
+          2. <b>Unlocked nodes</b> use their category color (not just green).<br><br>
+          3. <b>Paths (Lines)</b> inherit the color of the node they came from.<br><br>
+          4. <b>Canvas is pannable</b> (click and drag the background).
+        </div>
+      </div>
+    </div>
+
+    <div class="map-area" id="mapArea">
+      <div id="panContainer">
+        <svg id="lines"></svg>
+        <!-- Nodes injected via JS -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Colors for categorization
+    const C_CORE = '#61afef'; // Blue (C# Core)
+    const C_CROSS = '#e5c07b'; // Yellow (Crossroads)
+    const C_WEB = '#98c379';  // Green (Web/Job)
+    const C_GAME = '#c678dd'; // Purple (Unity/Games)
+    const C_DB = '#e06c75';   // Red (Databases)
+
+    const nodes = [
+      // Core C#
+      { id: 'start', x: 200, y: 350, label: 'C# Fundamentals', state: 'unlocked', icon: 'fa-solid fa-code', color: C_CORE },
+      { id: 'oop', x: 350, y: 350, label: 'OOP Principles', state: 'unlocked', icon: 'fa-solid fa-cubes', color: C_CORE },
+      { id: 'adv', x: 500, y: 350, label: 'Advanced C# (LINQ)', state: 'active', icon: 'fa-solid fa-bolt', color: C_CORE },
+      
+      // The Crossroads
+      { id: 'cross', x: 700, y: 350, label: 'Career Crossroads', state: 'locked', icon: 'fa-solid fa-code-branch', color: C_CROSS },
+
+      // Web Dev Path (Top)
+      { id: 'asp', x: 900, y: 200, label: 'ASP.NET Core', state: 'locked', icon: 'fa-solid fa-globe', color: C_WEB },
+      { id: 'api', x: 1050, y: 130, label: 'REST APIs', state: 'locked', icon: 'fa-solid fa-server', color: C_WEB },
+      { id: 'auth', x: 1200, y: 130, label: 'Auth & JWT', state: 'locked', icon: 'fa-solid fa-lock', color: C_WEB },
+      
+      { id: 'ef', x: 1050, y: 270, label: 'Entity Framework', state: 'locked', icon: 'fa-solid fa-database', color: C_DB },
+      { id: 'sql', x: 1200, y: 270, label: 'SQL Server', state: 'locked', icon: 'fa-solid fa-table', color: C_DB },
+
+      // Game Dev Path (Bottom)
+      { id: 'unity', x: 900, y: 500, label: 'Unity Engine Basics', state: 'locked', icon: 'fa-brands fa-unity', color: C_GAME },
+      { id: 'phys2d', x: 1050, y: 430, label: '2D Physics & Input', state: 'locked', icon: 'fa-solid fa-gamepad', color: C_GAME },
+      { id: 'phys3d', x: 1050, y: 570, label: '3D Math & Vectors', state: 'locked', icon: 'fa-solid fa-cube', color: C_GAME },
+      { id: 'shaders', x: 1200, y: 500, label: 'Shaders & Materials', state: 'locked', icon: 'fa-solid fa-paint-brush', color: C_GAME }
+    ];
+
+    const edges = [
+      { from: 'start', to: 'oop', state: 'unlocked' },
+      { from: 'oop', to: 'adv', state: 'unlocked' },
+      { from: 'adv', to: 'cross', state: 'active' }, // Currently studying this edge
+      
+      // Fork to Web
+      { from: 'cross', to: 'asp', state: 'locked' },
+      { from: 'asp', to: 'api', state: 'locked' },
+      { from: 'api', to: 'auth', state: 'locked' },
+      { from: 'asp', to: 'ef', state: 'locked' },
+      { from: 'ef', to: 'sql', state: 'locked' },
+
+      // Fork to Game
+      { from: 'cross', to: 'unity', state: 'locked' },
+      { from: 'unity', to: 'phys2d', state: 'locked' },
+      { from: 'unity', to: 'phys3d', state: 'locked' },
+      { from: 'phys2d', to: 'shaders', state: 'locked' },
+      { from: 'phys3d', to: 'shaders', state: 'locked' }
+    ];
+
+    const panContainer = document.getElementById('panContainer');
+    const svg = document.getElementById('lines');
+
+    // Draw Edges
+    edges.forEach(e => {
+      const fromNode = nodes.find(n => n.id === e.from);
+      const toNode = nodes.find(n => n.id === e.to);
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', fromNode.x);
+      line.setAttribute('y1', fromNode.y);
+      line.setAttribute('x2', toNode.x);
+      line.setAttribute('y2', toNode.y);
+      
+      if (e.state === 'locked') {
+        line.setAttribute('class', 'path-locked');
+      } else {
+        line.style.stroke = fromNode.color;
+      }
+      svg.appendChild(line);
+    });
+
+    // Draw Nodes
+    nodes.forEach(n => {
+      const el = document.createElement('div');
+      el.className = `node`;
+      el.style.left = n.x + 'px';
+      el.style.top = n.y + 'px';
+      
+      // Build inner HTML
+      el.innerHTML = `
+        <div class="node-circle" id="circle-${n.id}"><i class="${n.icon}"></i></div>
+        <div class="node-label" id="label-${n.id}">${n.label}</div>
+      `;
+      panContainer.appendChild(el);
+
+      // Apply dynamic styles based on state
+      const circle = el.querySelector(`#circle-${n.id}`);
+      const label = el.querySelector(`#label-${n.id}`);
+      
+      if (n.state === 'unlocked') {
+        circle.style.backgroundColor = 'var(--bg)';
+        circle.style.borderColor = n.color;
+        circle.style.color = n.color;
+        label.style.color = '#fff';
+      } else if (n.state === 'active') {
+        circle.style.backgroundColor = 'var(--bg)';
+        circle.style.borderColor = n.color;
+        circle.style.color = n.color;
+        circle.style.outline = `2px solid ${n.color}`;
+        circle.style.outlineOffset = '4px';
+        label.style.color = n.color;
+        label.style.fontWeight = 'bold';
+      }
+      // Locked state uses the default CSS variables (grayed out)
+    });
+
+    // Panning Logic
+    let isDragging = false;
+    let startX, startY;
+    let panX = 0, panY = 0;
+    const mapArea = document.getElementById('mapArea');
+
+    mapArea.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX - panX;
+      startY = e.clientY - panY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      panX = e.clientX - startX;
+      panY = e.clientY - startY;
+      panContainer.style.transform = `translate(${panX}px, ${panY}px)`;
+    });
+
+    window.addEventListener('mouseup', () => { isDragging = false; });
+  </script>
+</body>
+</html>
