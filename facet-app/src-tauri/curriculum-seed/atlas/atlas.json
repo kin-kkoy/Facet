@@ -1,0 +1,342 @@
+{
+  "title": "C# Syntax Atlas",
+  "parts": [
+    {
+      "id": "part-1",
+      "title": "Part I — The Language",
+      "pages": [
+        {
+          "id": "01-introduction",
+          "title": "Introduction",
+          "file": "part-1/01-introduction.md"
+        },
+        {
+          "id": "02-program-structure",
+          "title": "Program Structure",
+          "file": "part-1/02-program-structure.md"
+        },
+        {
+          "id": "03-variables",
+          "title": "Variables",
+          "file": "part-1/03-variables.md"
+        },
+        {
+          "id": "04-types",
+          "title": "Types",
+          "file": "part-1/04-types.md"
+        },
+        {
+          "id": "05-operators",
+          "title": "Operators",
+          "file": "part-1/05-operators.md"
+        },
+        {
+          "id": "06-control-flow",
+          "title": "Control Flow",
+          "file": "part-1/06-control-flow.md"
+        },
+        {
+          "id": "07-methods",
+          "title": "Methods",
+          "file": "part-1/07-methods.md"
+        },
+        {
+          "id": "08-parameters",
+          "title": "Parameters",
+          "file": "part-1/08-parameters.md"
+        },
+        {
+          "id": "09-scope",
+          "title": "Scope",
+          "file": "part-1/09-scope.md"
+        },
+        {
+          "id": "10-namespaces",
+          "title": "Namespaces",
+          "file": "part-1/10-namespaces.md"
+        },
+        {
+          "id": "11-files",
+          "title": "Files",
+          "file": "part-1/11-files.md"
+        },
+        {
+          "id": "12-exceptions",
+          "title": "Exceptions",
+          "file": "part-1/12-exceptions.md"
+        }
+      ]
+    },
+    {
+      "id": "part-2",
+      "title": "Part II — Object-Oriented Programming",
+      "pages": [
+        {
+          "id": "13-classes",
+          "title": "Classes",
+          "file": "part-2/13-classes.md"
+        },
+        {
+          "id": "14-objects",
+          "title": "Objects",
+          "file": "part-2/14-objects.md"
+        },
+        {
+          "id": "15-constructors",
+          "title": "Constructors",
+          "file": "part-2/15-constructors.md"
+        },
+        {
+          "id": "16-properties",
+          "title": "Properties",
+          "file": "part-2/16-properties.md"
+        },
+        {
+          "id": "17-encapsulation",
+          "title": "Encapsulation",
+          "file": "part-2/17-encapsulation.md"
+        },
+        {
+          "id": "18-inheritance",
+          "title": "Inheritance",
+          "file": "part-2/18-inheritance.md"
+        },
+        {
+          "id": "19-polymorphism",
+          "title": "Polymorphism",
+          "file": "part-2/19-polymorphism.md"
+        },
+        {
+          "id": "20-interfaces",
+          "title": "Interfaces",
+          "file": "part-2/20-interfaces.md"
+        },
+        {
+          "id": "21-records",
+          "title": "Records",
+          "file": "part-2/21-records.md"
+        },
+        {
+          "id": "22-structs",
+          "title": "Structs",
+          "file": "part-2/22-structs.md"
+        },
+        {
+          "id": "23-enums",
+          "title": "Enums",
+          "file": "part-2/23-enums.md"
+        }
+      ]
+    },
+    {
+      "id": "part-3",
+      "title": "Part III — Collections & Generics",
+      "pages": [
+        {
+          "id": "24-arrays",
+          "title": "Arrays",
+          "file": "part-3/24-arrays.md"
+        },
+        {
+          "id": "25-list",
+          "title": "List&lt;T&gt;",
+          "file": "part-3/25-list.md"
+        },
+        {
+          "id": "26-dictionary",
+          "title": "Dictionary&lt;TKey,TValue&gt;",
+          "file": "part-3/26-dictionary.md"
+        },
+        {
+          "id": "27-hashset",
+          "title": "HashSet&lt;T&gt;",
+          "file": "part-3/27-hashset.md"
+        },
+        {
+          "id": "28-queue",
+          "title": "Queue&lt;T&gt;",
+          "file": "part-3/28-queue.md"
+        },
+        {
+          "id": "29-stack",
+          "title": "Stack&lt;T&gt;",
+          "file": "part-3/29-stack.md"
+        },
+        {
+          "id": "30-generics",
+          "title": "Generics",
+          "file": "part-3/30-generics.md"
+        },
+        {
+          "id": "31-equality",
+          "title": "Equality",
+          "file": "part-3/31-equality.md"
+        },
+        {
+          "id": "32-iterators",
+          "title": "Iterators",
+          "file": "part-3/32-iterators.md"
+        }
+      ]
+    },
+    {
+      "id": "part-4",
+      "title": "Part IV — Modern C#",
+      "pages": [
+        {
+          "id": "33-nullable-reference-types",
+          "title": "Nullable Reference Types",
+          "file": "part-4/33-nullable-reference-types.md"
+        },
+        {
+          "id": "34-pattern-matching",
+          "title": "Pattern Matching",
+          "file": "part-4/34-pattern-matching.md"
+        },
+        {
+          "id": "35-expression-bodied-members",
+          "title": "Expression-bodied Members",
+          "file": "part-4/35-expression-bodied-members.md"
+        },
+        {
+          "id": "36-extension-methods",
+          "title": "Extension Methods",
+          "file": "part-4/36-extension-methods.md"
+        },
+        {
+          "id": "37-delegates",
+          "title": "Delegates",
+          "file": "part-4/37-delegates.md"
+        },
+        {
+          "id": "38-events",
+          "title": "Events",
+          "file": "part-4/38-events.md"
+        },
+        {
+          "id": "39-lambdas",
+          "title": "Lambdas",
+          "file": "part-4/39-lambdas.md"
+        },
+        {
+          "id": "40-linq",
+          "title": "LINQ",
+          "file": "part-4/40-linq.md"
+        }
+      ]
+    },
+    {
+      "id": "part-5",
+      "title": "Part V — Concurrency",
+      "pages": [
+        {
+          "id": "41-tasks",
+          "title": "Tasks",
+          "file": "part-5/41-tasks.md"
+        },
+        {
+          "id": "42-async-await",
+          "title": "async / await",
+          "file": "part-5/42-async-await.md"
+        },
+        {
+          "id": "43-cancellation",
+          "title": "Cancellation",
+          "file": "part-5/43-cancellation.md"
+        },
+        {
+          "id": "44-parallelism",
+          "title": "Parallelism",
+          "file": "part-5/44-parallelism.md"
+        }
+      ]
+    },
+    {
+      "id": "part-6",
+      "title": "Part VI — The .NET Ecosystem",
+      "pages": [
+        {
+          "id": "45-dotnet-cli",
+          "title": "dotnet CLI",
+          "file": "part-6/45-dotnet-cli.md"
+        },
+        {
+          "id": "46-projects-csproj",
+          "title": "Projects (.csproj)",
+          "file": "part-6/46-projects-csproj.md"
+        },
+        {
+          "id": "47-solutions-sln",
+          "title": "Solutions (.sln)",
+          "file": "part-6/47-solutions-sln.md"
+        },
+        {
+          "id": "48-nuget",
+          "title": "NuGet",
+          "file": "part-6/48-nuget.md"
+        },
+        {
+          "id": "49-file-io",
+          "title": "File I/O",
+          "file": "part-6/49-file-io.md"
+        },
+        {
+          "id": "50-serialization",
+          "title": "Serialization",
+          "file": "part-6/50-serialization.md"
+        },
+        {
+          "id": "51-logging",
+          "title": "Logging",
+          "file": "part-6/51-logging.md"
+        },
+        {
+          "id": "52-configuration",
+          "title": "Configuration",
+          "file": "part-6/52-configuration.md"
+        },
+        {
+          "id": "53-dependency-injection",
+          "title": "Dependency Injection",
+          "file": "part-6/53-dependency-injection.md"
+        }
+      ]
+    },
+    {
+      "id": "appendix",
+      "title": "Appendix",
+      "pages": [
+        {
+          "id": "appendix-a-common-compiler-errors",
+          "title": "Appendix A — Common Compiler Errors",
+          "file": "appendix/appendix-a-common-compiler-errors.md"
+        },
+        {
+          "id": "appendix-b-c-to-csharp-cheat-sheet",
+          "title": "Appendix B — C → C# Cheat Sheet",
+          "file": "appendix/appendix-b-c-to-csharp-cheat-sheet.md"
+        },
+        {
+          "id": "appendix-c-java-to-csharp-cheat-sheet",
+          "title": "Appendix C — Java → C# Cheat Sheet",
+          "file": "appendix/appendix-c-java-to-csharp-cheat-sheet.md"
+        },
+        {
+          "id": "appendix-d-performance-tips",
+          "title": "Appendix D — Performance Tips",
+          "file": "appendix/appendix-d-performance-tips.md"
+        },
+        {
+          "id": "appendix-e-interview-notes",
+          "title": "Appendix E — Interview Notes",
+          "file": "appendix/appendix-e-interview-notes.md"
+        },
+        {
+          "id": "appendix-f-recommended-practices",
+          "title": "Appendix F — Recommended Practices",
+          "file": "appendix/appendix-f-recommended-practices.md"
+        }
+      ]
+    }
+  ]
+}

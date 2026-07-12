@@ -1,0 +1,22 @@
+{
+  "title": "Facet — App Specs",
+  "parts": [
+    {
+      "id": "guide",
+      "title": "Guide",
+      "pages": [
+        { "id": "01-onboarding", "title": "Onboarding", "file": "01-onboarding.md" },
+        { "id": "02-architecture", "title": "Architecture", "file": "02-architecture.md" },
+        { "id": "03-features", "title": "Feature Reference", "file": "03-features.md" }
+      ]
+    },
+    {
+      "id": "cookbook",
+      "title": "Cookbook",
+      "pages": [
+        { "id": "04-editable-content", "title": "Editable Content (Cookbook)", "file": "04-editable-content.md" },
+        { "id": "05-build-release", "title": "Build & Release", "file": "05-build-release.md" }
+      ]
+    }
+  ]
+}

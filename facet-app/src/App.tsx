@@ -1,16 +1,34 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import './index.css';
+import { loadAppearance, saveIsLight, saveIsSoft } from './utils/appearance';
 import LabView from './components/layout/LabView';
 import MapView from './components/layout/MapView';
+import BookView, { type BookTarget, type BookPageContext } from './components/layout/BookView';
 import SettingsModal from './components/modals/SettingsModal';
 import SocraticDrawer from './components/modals/SocraticDrawer';
 import { useStudies } from './hooks/useStudies';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState<'map' | 'study'>('study');
+  const [activeTab, setActiveTab] = useState<'map' | 'mapbook' | 'atlas' | 'study' | 'appspecs'>('study');
+  const [atlasTarget, setAtlasTarget] = useState<BookTarget | null>(null);
+  const atlasNonce = useRef(0);
+  const openAtlas = (pageId: string) => { setAtlasTarget({ pageId, nonce: ++atlasNonce.current }); setActiveTab('atlas'); };
+
+  // Track the page open in each book, so the AI can be grounded in what's on screen.
+  const [bookPages, setBookPages] = useState<Record<string, BookPageContext>>({});
+  const onBookPage = (dir: string, ctx: BookPageContext) => setBookPages((p) => ({ ...p, [dir]: ctx }));
+  const activeBookDir = activeTab === 'mapbook' ? 'mapbook' : activeTab === 'atlas' ? 'atlas' : null;
+  const readingCtx = activeBookDir ? bookPages[activeBookDir] : null;
+  const readingContext = readingCtx
+    ? `The user is reading their C# learning book — "${readingCtx.bookTitle} → ${readingCtx.pageTitle}". Here is the page on their screen:\n\n"""\n${readingCtx.body.slice(0, 8000)}\n"""\n\nWhen they ask what something means or to explain further, ground your answer in THIS page. If a different explanation, analogy, or a simple text/ASCII visualization would help them understand or remember it, offer that.`
+    : undefined;
   const [isLight, setIsLight] = useState(false);
   const [isSoft, setIsSoft] = useState(false);
+  // Restore the saved appearance on launch, and persist whenever it's toggled.
+  useEffect(() => { loadAppearance().then(({ isLight, isSoft }) => { setIsLight(isLight); setIsSoft(isSoft); }); }, []);
+  const changeLight = (v: boolean) => { setIsLight(v); saveIsLight(v); };
+  const changeSoft = (v: boolean) => { setIsSoft(v); saveIsSoft(v); };
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isTutorOpen, setIsTutorOpen] = useState(false);
   const [accent] = useState('default');
@@ -86,8 +104,17 @@ function App() {
             <button className={`tab ${activeTab === 'map' ? 'active' : ''}`} onClick={() => setActiveTab('map')}>
               <span className="tdot" style={{ background: 'var(--pink)' }}></span> Map
             </button>
+            <button className={`tab ${activeTab === 'mapbook' ? 'active' : ''}`} onClick={() => setActiveTab('mapbook')}>
+              <span className="tdot" style={{ background: '#7ee787' }}></span> Map (book)
+            </button>
+            <button className={`tab ${activeTab === 'atlas' ? 'active' : ''}`} onClick={() => setActiveTab('atlas')}>
+              <span className="tdot" style={{ background: '#ffd23f' }}></span> Atlas
+            </button>
             <button className={`tab ${activeTab === 'study' ? 'active' : ''}`} onClick={() => setActiveTab('study')}>
               <span className="tdot" style={{ background: 'var(--accent)' }}></span> Study
+            </button>
+            <button className={`tab ${activeTab === 'appspecs' ? 'active' : ''}`} onClick={() => setActiveTab('appspecs')}>
+              <span className="tdot" style={{ background: '#79c0ff' }}></span> App Specs
             </button>
           </div>
           <span className="topfill"></span>
@@ -103,7 +130,18 @@ function App() {
         {/* VIEWS — both stay mounted (display toggle) so state + injected
             examples persist across tab switches instead of re-running. */}
         <div style={{ display: activeTab === 'map' ? 'contents' : 'none' }}>
-          <MapView onLoadExample={loadExample} />
+          <MapView onLoadExample={loadExample} onOpenAtlas={openAtlas} />
+        </div>
+        <div style={{ display: activeTab === 'mapbook' ? 'contents' : 'none' }}>
+          <BookView dir="mapbook" accent="#7ee787" emptyHint="The Map (book) has no pages yet."
+            onPage={onBookPage} onAskAI={() => setIsTutorOpen(true)} />
+        </div>
+        <div style={{ display: activeTab === 'atlas' ? 'contents' : 'none' }}>
+          <BookView dir="atlas" accent="#ffd23f" target={atlasTarget}
+            onPage={onBookPage} onAskAI={() => setIsTutorOpen(true)} />
+        </div>
+        <div style={{ display: activeTab === 'appspecs' ? 'contents' : 'none' }}>
+          <BookView dir="app-specs" accent="#79c0ff" emptyHint="No App Specs pages yet." />
         </div>
         <div style={{ display: activeTab === 'study' ? 'contents' : 'none' }}>
           {/* keyed by study so switching studies gives a fresh lab (files reload, trace resets) */}
@@ -118,9 +156,9 @@ function App() {
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
           isLight={isLight}
-          setIsLight={setIsLight}
+          setIsLight={changeLight}
           isSoft={isSoft}
-          setIsSoft={setIsSoft}
+          setIsSoft={changeSoft}
         />
 
         {/* SOCRATIC TUTOR — bound to the active study's chats */}
@@ -135,6 +173,8 @@ function App() {
           addChat={st.addChat}
           renameChat={st.renameChat}
           deleteChat={st.deleteChat}
+          readingContext={readingContext}
+          contextLabel={readingCtx ? readingCtx.pageTitle : undefined}
         />
       </div>
     </div>

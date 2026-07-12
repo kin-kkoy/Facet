@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:engine": "dotnet publish ../facet-engine -c Release -r linux-x64 --self-contained true -p:SatelliteResourceLanguages=en -o src-tauri/engine/linux-x64 && rm -f src-tauri/engine/linux-x64/libcoreclrtraceptprovider.so",
     "preview": "vite preview",
     "tauri": "tauri"
   },
@@ -19,11 +20,16 @@
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-store": "^2.4.3",
     "codemirror": "^6.0.2",
+    "js-yaml": "^4.1.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
+    "@types/js-yaml": "^4.0.9",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",

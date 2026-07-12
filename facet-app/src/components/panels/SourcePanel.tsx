@@ -6,6 +6,7 @@ import { StreamLanguage } from '@codemirror/language';
 import { csharp } from '@codemirror/legacy-modes/mode/clike';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { askOpenRouter } from '../../utils/ai';
+import FileTree, { type TreeFile } from './FileTree';
 
 /* ── executing-line highlight (driven by the trace step) ───────── */
 const setExecLine = StateEffect.define<number>();          // 1-based line, 0 = none
@@ -70,7 +71,7 @@ const facetTheme = EditorView.theme({
   },
 }, { dark: true });
 
-interface FileTab { id: string; name: string; }
+interface FileTab { id: string; name: string; path: string; }
 
 interface Props {
   code: string;
@@ -79,28 +80,42 @@ interface Props {
   isMinimized?: boolean;
   onMinimize?: () => void;
   onClose?: () => void;
-  // Multi-file tabs
+  // Multi-file tree
   files?: FileTab[];
   activeId?: string;
-  fileId?: string;                 // drives editor recreation on tab switch
+  fileId?: string;                 // drives editor recreation on file switch
   onSelectFile?: (id: string) => void;
-  onAddFile?: () => void;
-  onRenameFile?: (id: string, name: string) => void;
+  onAddFile?: (path?: string) => void;
+  onRenameFile?: (id: string, path: string) => void;
   onCloseFile?: (id: string) => void;
-  onReorderFile?: (fromId: string, toId: string) => void;
+  onRenameFolder?: (fromDir: string, toDir: string) => void;
+  onDeleteFolder?: (dir: string) => void;
 }
 
-export default function SourcePanel({ code, setCode, activeStep, isMinimized, onMinimize, onClose, files, activeId, fileId, onSelectFile, onAddFile, onRenameFile, onCloseFile, onReorderFile }: Props) {
+export default function SourcePanel({ code, setCode, activeStep, isMinimized, onMinimize, onClose, files, activeId, fileId, onSelectFile, onAddFile, onRenameFile, onCloseFile, onRenameFolder, onDeleteFolder }: Props) {
   const [isRefining, setIsRefining] = useState(false);
   const [refinementFeedback, setRefinementFeedback] = useState('');
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameDraft, setRenameDraft] = useState('');
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [dropId, setDropId] = useState<string | null>(null);
-  const activeName = files?.find(f => f.id === activeId)?.name ?? 'Program.cs';
+  const [sidebarW, setSidebarW] = useState(190);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const activeName = files?.find(f => f.id === activeId)?.path ?? 'Program.cs';
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  const pbodyRef = useRef<HTMLDivElement>(null);
+  const resizingRef = useRef(false);
   const viewRef = useRef<EditorView | null>(null);
   const codeRef = useRef(code);
+
+  // Drag the gutter between the file sidebar and the editor to resize it.
+  useEffect(() => {
+    const move = (e: MouseEvent) => {
+      if (!resizingRef.current || !pbodyRef.current) return;
+      const left = pbodyRef.current.getBoundingClientRect().left;
+      setSidebarW(Math.min(420, Math.max(120, e.clientX - left)));
+    };
+    const up = () => { resizingRef.current = false; };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+  }, []);
 
   // Keep codeRef in sync so the update listener doesn't stale-close over `code`
   codeRef.current = code;
@@ -223,68 +238,38 @@ export default function SourcePanel({ code, setCode, activeStep, isMinimized, on
             </div>
           )}
 
-          <div className="pbody" style={{ padding: 0, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            {files && files.length > 0 && onSelectFile && (
-              <div style={{ display: 'flex', alignItems: 'stretch', gap: 2, background: '#0a0a0c', borderBottom: '1px solid var(--border)', overflowX: 'auto', flexShrink: 0 }}>
-                {files.map(f => {
-                  const active = f.id === activeId;
-                  const canDrag = !!onReorderFile && renamingId !== f.id && files.length > 1;
-                  return (
-                    <div key={f.id}
-                      draggable={canDrag}
-                      onDragStart={canDrag ? (e) => { setDragId(f.id); e.dataTransfer.effectAllowed = 'move'; } : undefined}
-                      onDragOver={canDrag ? (e) => { e.preventDefault(); if (dragId && dragId !== f.id) setDropId(f.id); } : undefined}
-                      onDragLeave={canDrag ? () => setDropId(d => (d === f.id ? null : d)) : undefined}
-                      onDrop={canDrag ? (e) => { e.preventDefault(); if (dragId && dragId !== f.id) onReorderFile!(dragId, f.id); setDragId(null); setDropId(null); } : undefined}
-                      onDragEnd={() => { setDragId(null); setDropId(null); }}
-                      onClick={() => { if (renamingId !== f.id) onSelectFile(f.id); }}
-                      onDoubleClick={() => { setRenamingId(f.id); setRenameDraft(f.name); }}
-                      title={renamingId === f.id ? '' : 'Double-click to rename · drag to reorder'}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 6, padding: '5px 9px', cursor: canDrag ? 'grab' : 'pointer',
-                        fontFamily: 'var(--mono)', fontSize: 11, whiteSpace: 'nowrap',
-                        color: active ? 'var(--text)' : 'var(--text3)',
-                        background: active ? '#000' : 'transparent',
-                        borderTop: active ? '2px solid var(--blue)' : '2px solid transparent',
-                        borderLeft: dropId === f.id ? '2px solid var(--accent)' : '2px solid transparent',
-                        opacity: dragId === f.id ? 0.4 : 1,
-                      }}>
-                      {renamingId === f.id ? (
-                        <input autoFocus value={renameDraft}
-                          onChange={e => setRenameDraft(e.target.value)}
-                          onClick={e => e.stopPropagation()}
-                          onBlur={() => { const n = renameDraft.trim(); if (n && onRenameFile) onRenameFile(f.id, n); setRenamingId(null); }}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') { const n = renameDraft.trim(); if (n && onRenameFile) onRenameFile(f.id, n); setRenamingId(null); }
-                            else if (e.key === 'Escape') setRenamingId(null);
-                          }}
-                          style={{ width: Math.max(60, renameDraft.length * 7), background: '#111', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 2, fontFamily: 'var(--mono)', fontSize: 11, padding: '1px 4px' }} />
-                      ) : (
-                        <>
-                          <i className="fa-solid fa-file-code" style={{ fontSize: 9, opacity: 0.6 }} />
-                          <span>{f.name}</span>
-                          {files.length > 1 && onCloseFile && (
-                            <span onClick={e => { e.stopPropagation(); onCloseFile(f.id); }} title="Close file"
-                              style={{ marginLeft: 2, opacity: 0.5, fontSize: 10 }}
-                              onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-                              onMouseLeave={e => (e.currentTarget.style.opacity = '0.5')}>
-                              <i className="fa-solid fa-xmark" />
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-                {onAddFile && (
-                  <button onClick={onAddFile} title="New file"
-                    style={{ background: 'transparent', border: 'none', color: 'var(--text3)', cursor: 'pointer', padding: '0 10px', fontSize: 12 }}>
-                    <i className="fa-solid fa-plus" />
+          <div className="pbody" ref={pbodyRef} style={{ padding: 0, flex: 1, display: 'flex', flexDirection: 'row', minHeight: 0 }}>
+            {files && files.length > 0 && onSelectFile && onAddFile && onRenameFile && onCloseFile && (
+              sidebarCollapsed ? (
+                <div style={{ width: 26, flexShrink: 0, borderRight: '1px solid var(--border)', background: '#0a0a0c', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 6 }}>
+                  <button title="Show files" onClick={() => setSidebarCollapsed(false)}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: 12 }}>
+                    <i className="fa-solid fa-folder-tree" />
                   </button>
-                )}
-              </div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ width: sidebarW, flexShrink: 0, minWidth: 0, minHeight: 0, borderRight: '1px solid var(--border)' }}>
+                    <FileTree
+                      files={files as TreeFile[]}
+                      activeId={activeId}
+                      onSelect={onSelectFile}
+                      onCreateFile={onAddFile}
+                      onRenameFile={onRenameFile}
+                      onDeleteFile={onCloseFile}
+                      onRenameFolder={onRenameFolder ?? (() => {})}
+                      onDeleteFolder={onDeleteFolder ?? (() => {})}
+                      onCollapse={() => setSidebarCollapsed(true)}
+                      canDelete={files.length > 1}
+                    />
+                  </div>
+                  <div onMouseDown={e => { resizingRef.current = true; e.preventDefault(); }}
+                    title="Drag to resize"
+                    style={{ width: 5, flexShrink: 0, cursor: 'col-resize', background: 'var(--border)' }} />
+                </>
+              )
             )}
-            <div ref={editorContainerRef} style={{ flex: 1, height: '100%', width: '100%', minHeight: 0 }} />
+            <div ref={editorContainerRef} style={{ flex: 1, height: '100%', minWidth: 0, minHeight: 0 }} />
           </div>
         </>
       )}

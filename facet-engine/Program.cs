@@ -669,6 +669,15 @@ namespace FacetEngine
 
         static async Task Main(string[] args)
         {
+            // Interactive mode: run the program plainly with real console I/O (so
+            // Console.ReadLine reads live stdin) — no tracing, no lens JSON. The code
+            // comes from a FILE arg, leaving stdin free for the user's input.
+            if (args.Length >= 2 && args[0] == "--exec")
+            {
+                await RunInteractive(args[1]);
+                return;
+            }
+
             string code = "";
             if (args.Length > 0 && args[0] == "--test") {
                 code = "class Node { public int Val; public Node Next; } Node head = new Node { Val = 1 }; head.Next = new Node { Val = 2 };";
@@ -1016,7 +1025,7 @@ namespace FacetEngine
                     // tripping the frontend's top-level `error` short-circuit, so partial
                     // traces still render.
                     var reason = truncReason ?? (runtimeError != null ? ("runtime: " + runtimeError) : null);
-                    var result = new { ast = ast, traces = traces, classes = classes, callTree = callRoot.Children, complexity = complexity, truncated = reason };
+                    var result = new { ast = ast, traces = traces, classes = classes, callTree = callRoot.Children, complexity = complexity, truncated = reason, stdout = sw.ToString() };
                     var json = JsonSerializer.Serialize(result, jsonOptions);
                     Console.WriteLine("---FACET_JSON_START---");
                     Console.WriteLine(json);
@@ -1061,6 +1070,37 @@ namespace FacetEngine
                 var errorObj = new { error = ex.Message };
                 Console.WriteLine("---FACET_JSON_START---");
                 Console.WriteLine(JsonSerializer.Serialize(errorObj));
+            }
+        }
+
+        // Plain interactive execution: real stdout (auto-flushed so prompts show
+        // before ReadLine blocks) and real stdin. No instrumentation, no JSON —
+        // just the program's own console I/O, streamed live to the terminal UI.
+        static async Task RunInteractive(string codePath)
+        {
+            var stdout = new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
+            Console.SetOut(stdout);
+
+            string src;
+            try { src = await File.ReadAllTextAsync(codePath); }
+            catch (Exception ex) { Console.WriteLine("Failed to read program: " + ex.Message); return; }
+
+            var options = ScriptOptions.Default
+                .AddReferences(typeof(Enumerable).Assembly)
+                .WithImports("System", "System.Collections", "System.Collections.Generic", "System.Linq", "System.Text", "System.Threading", "System.Threading.Tasks");
+
+            try
+            {
+                await CSharpScript.RunAsync(src, options);
+            }
+            catch (CompilationErrorException e)
+            {
+                foreach (var d in e.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+                    Console.WriteLine(d.ToString());
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.GetType().Name + ": " + e.Message);
             }
         }
     }

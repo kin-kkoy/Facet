@@ -3,6 +3,9 @@ import {
   loadStudies, saveStudies, defaultStudiesState, newStudy, newChat, MAX_CHATS,
   type StudiesState, type Study, type LabFile, type ChatMessage,
 } from '../utils/studies';
+import { syncStudyFiles, removeStudyDir } from '../utils/studyFs';
+
+const hasTauri = () => !!(window as any).__TAURI_INTERNALS__;
 
 // Owns the whole studies workspace (files + chats + notes per study) and its
 // persistence. Lives once in App and is fed down to LabView / SocraticDrawer / Notes.
@@ -10,10 +13,27 @@ export function useStudies() {
   const [state, setState] = useState<StudiesState>(() => defaultStudiesState());
   const loaded = useRef(false);
 
-  useEffect(() => { loadStudies().then(s => { setState(s); loaded.current = true; }); }, []);
+  useEffect(() => {
+    loadStudies().then(s => {
+      setState(s); loaded.current = true;
+      // Migrate/mirror every study's files onto disk so the on-disk tree exists.
+      if (hasTauri()) s.studies.forEach(st => syncStudyFiles(st.id, st.files));
+    });
+  }, []);
   useEffect(() => { if (loaded.current) saveStudies(state); }, [state]);
 
   const activeStudy = state.studies.find(s => s.id === state.activeStudyId) ?? state.studies[0];
+
+  // Mirror the active study's files to its on-disk directory, debounced so a
+  // burst of keystrokes writes once. studies.json remains the source of truth.
+  const mirrorRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!loaded.current || !hasTauri() || !activeStudy) return;
+    if (mirrorRef.current) clearTimeout(mirrorRef.current);
+    const { id, files } = activeStudy;
+    mirrorRef.current = setTimeout(() => { syncStudyFiles(id, files); }, 600);
+    return () => { if (mirrorRef.current) clearTimeout(mirrorRef.current); };
+  }, [activeStudy?.id, activeStudy?.files]);
 
   const patchStudy = useCallback((id: string, patch: Partial<Study> | ((s: Study) => Partial<Study>)) => {
     setState(st => ({ ...st, studies: st.studies.map(s => (s.id === id ? { ...s, ...(typeof patch === 'function' ? patch(s) : patch) } : s)) }));
@@ -25,6 +45,7 @@ export function useStudies() {
   const renameStudy = useCallback((id: string, name: string) => patchStudy(id, { name }), [patchStudy]);
   const deleteStudy = useCallback((id: string) => setState(st => {
     if (st.studies.length <= 1) return st;
+    removeStudyDir(id); // drop its on-disk directory too
     const studies = st.studies.filter(s => s.id !== id);
     return { studies, activeStudyId: st.activeStudyId === id ? studies[0].id : st.activeStudyId };
   }), []);

@@ -1,0 +1,9 @@
+{
+  "id": "core",
+  "label": "C# Core",
+  "color": "#61afef",
+  "icon": "fa-solid fa-microchip",
+  "lane": 0,
+  "side": 1,
+  "order": 0
+}

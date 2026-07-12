@@ -2,10 +2,11 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import SourcePanel from '../panels/SourcePanel';
 import NotePanel from '../panels/NotePanel';
+import ConsolePanel from '../panels/ConsolePanel';
 import VisualizerShell from './VisualizerShell';
 import RuntimePanel from '../panels/RuntimePanel';
 import { askAIWithRetry, getSelectedModel, isSelectedModelFree } from '../../utils/ai';
-import { type LabFile } from '../../utils/files';
+import { type LabFile, baseName } from '../../utils/files';
 
 let fileSeq = 1;
 const newFileId = () => `file-${++fileSeq}-${Date.now().toString(36)}`;
@@ -131,6 +132,16 @@ export default function LabView({ inject, active = true, files, activeFileId: ac
   const [activeLens, setActiveLens] = useState('flow');
   const [toast, setToast] = useState<string | null>(null);
 
+  // "Run Output" — a live terminal run: the program executes as a real process,
+  // its output streams in, and you can type input (Console.ReadLine) as it runs.
+  // Separate from the trace lenses (which need a non-interactive recorded run).
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  const [termText, setTermText] = useState('');
+  const [consoleErr, setConsoleErr] = useState<string | null>(null);
+  const [isConsoleRunning, setIsConsoleRunning] = useState(false);
+  const [inputLine, setInputLine] = useState('');
+  const runIdRef = useRef<number | null>(null);
+
   // Supercompile (AI stubs for unresolvable libraries)
   const [unresolvedNames, setUnresolvedNames] = useState<string[] | null>(null);
   const [isSupercompiling, setIsSupercompiling] = useState(false);
@@ -138,29 +149,48 @@ export default function LabView({ inject, active = true, files, activeFileId: ac
   const [stubsOpen, setStubsOpen] = useState(false);
 
 
-  // File-tab handlers
+  // File-tree handlers. Files carry a relative `path` (e.g. "Models/Node.cs");
+  // `name` is kept as its basename for display. Paths are unique within a study.
   const selectFile = useCallback((id: string) => setActiveId(id), [setActiveId]);
-  const addFile = useCallback(() => {
+  const uniquePath = useCallback((path: string, ignoreId?: string) => {
+    const taken = new Set(filesRef.current.filter(f => f.id !== ignoreId).map(f => f.path));
+    if (!taken.has(path)) return path;
+    const dot = path.lastIndexOf('.');
+    const stem = dot > path.lastIndexOf('/') ? path.slice(0, dot) : path;
+    const ext = dot > path.lastIndexOf('/') ? path.slice(dot) : '';
+    let n = 2;
+    while (taken.has(`${stem}${n}${ext}`)) n++;
+    return `${stem}${n}${ext}`;
+  }, []);
+  const addFile = useCallback((rawPath?: string) => {
     const id = newFileId();
-    setFiles(prev => [...prev, { id, name: `File${prev.length + 1}.cs`, content: '' }]);
+    const path = uniquePath((rawPath && rawPath.trim()) || `File${filesRef.current.length + 1}.cs`);
+    setFiles(prev => [...prev, { id, name: baseName(path), path, content: '' }]);
     setActiveId(id);
-  }, [setFiles, setActiveId]);
-  const renameFile = useCallback((id: string, name: string) => {
-    setFiles(prev => prev.map(f => (f.id === id ? { ...f, name } : f)));
-  }, [setFiles]);
+  }, [setFiles, setActiveId, uniquePath]);
+  const renameFile = useCallback((id: string, rawPath: string) => {
+    const path = uniquePath(rawPath.trim(), id);
+    if (!path) return;
+    setFiles(prev => prev.map(f => (f.id === id ? { ...f, name: baseName(path), path } : f)));
+  }, [setFiles, uniquePath]);
   const closeFile = useCallback((id: string) => {
     if (filesRef.current.length <= 1) return; // keep at least one file
     // setFiles (in useStudies) auto-reassigns the active file if we removed it.
     setFiles(prev => prev.filter(f => f.id !== id));
   }, [setFiles]);
-  const reorderFile = useCallback((fromId: string, toId: string) => {
+  // Move every file under `fromDir` to `toDir` (folder rename/delete support).
+  const renameFolder = useCallback((fromDir: string, toDir: string) => {
+    setFiles(prev => prev.map(f => {
+      if (f.path !== fromDir && !f.path.startsWith(fromDir + '/')) return f;
+      const rest = f.path.slice(fromDir.length);
+      const path = (toDir + rest).replace(/^\/+/, '');
+      return { ...f, name: baseName(path), path };
+    }));
+  }, [setFiles]);
+  const deleteFolder = useCallback((dir: string) => {
     setFiles(prev => {
-      const from = prev.findIndex(f => f.id === fromId), to = prev.findIndex(f => f.id === toId);
-      if (from < 0 || to < 0 || from === to) return prev;
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
+      const next = prev.filter(f => f.path !== dir && !f.path.startsWith(dir + '/'));
+      return next.length ? next : prev; // never delete the last file
     });
   }, [setFiles]);
 
@@ -441,6 +471,56 @@ export default function LabView({ inject, active = true, files, activeFileId: ac
     }
   };
 
+  // Launch the program in a live terminal: start the process, then stream its
+  // output via events and feed it input as the user types.
+  const runConsole = async () => {
+    if (isConsoleRunning) return;
+    const { blob } = buildBlob(filesRef.current);
+    setConsoleOpen(true); setTermText(''); setConsoleErr(null); setInputLine('');
+    if (!window.__TAURI_INTERNALS__) { setConsoleErr('Live run needs the desktop app.'); return; }
+    setIsConsoleRunning(true);
+    try {
+      runIdRef.current = await invoke<number>('start_interactive', { code: blob });
+    } catch (e: any) {
+      setConsoleErr(e.toString()); setIsConsoleRunning(false);
+    }
+  };
+
+  // Send the current input line to the running program's stdin, echoing it into
+  // the terminal (stdin isn't mirrored to stdout, so we show it ourselves).
+  const sendInput = () => {
+    if (!isConsoleRunning || runIdRef.current == null) return;
+    const line = inputLine;
+    setInputLine('');
+    setTermText(t => t + line + '\n');
+    invoke('send_interactive_input', { runId: runIdRef.current, text: line + '\n' }).catch(() => {});
+  };
+
+  // Close the terminal, killing the process if it's still running.
+  const closeConsole = () => {
+    if (runIdRef.current != null) invoke('kill_interactive', { runId: runIdRef.current }).catch(() => {});
+    runIdRef.current = null;
+    setConsoleOpen(false); setIsConsoleRunning(false); setInputLine('');
+  };
+
+  // Stream process output/exit from the backend into the terminal.
+  useEffect(() => {
+    if (!window.__TAURI_INTERNALS__) return;
+    let unOut: (() => void) | undefined, unExit: (() => void) | undefined;
+    import('@tauri-apps/api/event').then(({ listen }) => {
+      listen<{ runId: number; text: string }>('interactive-output', e => {
+        if (e.payload.runId === runIdRef.current) setTermText(t => t + e.payload.text);
+      }).then(u => { unOut = u; });
+      listen<{ runId: number; code: number }>('interactive-exit', e => {
+        if (e.payload.runId === runIdRef.current) {
+          setIsConsoleRunning(false);
+          setTermText(t => t + `\n[process exited — code ${e.payload.code}]\n`);
+        }
+      }).then(u => { unExit = u; });
+    });
+    return () => { unOut?.(); unExit?.(); };
+  }, []);
+
   // Ask the AI for stub types for the unresolved libraries, assemble a script-legal
   // blob (usings → stubs → user code), and re-run.
   const supercompile = async () => {
@@ -562,6 +642,12 @@ export default function LabView({ inject, active = true, files, activeFileId: ac
                 : <><i className="fa-solid fa-wand-magic-sparkles"></i> SUPERCOMPILE WITH AI</>}
             </button>
           )}
+          <button className="pbtn" onClick={runConsole} disabled={isConsoleRunning || isRunning} title="Run the program and show only its console output"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {isConsoleRunning
+              ? <><i className="fa-solid fa-circle-notch fa-spin"></i> RUNNING…</>
+              : <><i className="fa-solid fa-terminal"></i> RUN OUTPUT</>}
+          </button>
           <button className="pbtn" onClick={() => runCode()} disabled={isRunning} style={{ display: 'flex', alignItems: 'center', gap: '6px', position: 'relative', overflow: 'hidden' }}>
             {isRunning
               ? <><i className="fa-solid fa-circle-notch fa-spin"></i> COMPILING & RUNNING…</>
@@ -597,7 +683,8 @@ export default function LabView({ inject, active = true, files, activeFileId: ac
             <SourcePanel
               code={activeFile?.content ?? ''} setCode={setActiveContent} activeStep={localActiveLine}
               files={files} activeId={activeId} fileId={activeId}
-              onSelectFile={selectFile} onAddFile={addFile} onRenameFile={renameFile} onCloseFile={closeFile} onReorderFile={reorderFile}
+              onSelectFile={selectFile} onAddFile={addFile} onRenameFile={renameFile} onCloseFile={closeFile}
+              onRenameFolder={renameFolder} onDeleteFolder={deleteFolder}
               isMinimized={panels.source.minimized}
               onMinimize={() => toggleMin('source')}
               onClose={() => closePnl('source')}
@@ -678,6 +765,18 @@ export default function LabView({ inject, active = true, files, activeFileId: ac
       </div>
 
       <NotePanel isOpen={noteOpen} onClose={() => setNoteOpen(false)} note={note} setNote={setNote} />
+
+      <ConsolePanel
+        isOpen={consoleOpen}
+        onClose={closeConsole}
+        text={termText}
+        running={isConsoleRunning}
+        error={consoleErr}
+        input={inputLine}
+        setInput={setInputLine}
+        onSend={sendInput}
+        onRerun={runConsole}
+      />
     </div>
   );
 }

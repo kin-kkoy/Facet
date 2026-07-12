@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { askAIChat } from '../../utils/ai';
+import { useState, useEffect } from 'react';
+import { askAIChat, getAIMode, setAIMode, systemForMode, type AIMode } from '../../utils/ai';
 import { MAX_CHATS, type Chat, type ChatMessage } from '../../utils/studies';
 
 interface Props {
@@ -13,15 +13,23 @@ interface Props {
   addChat: () => void;
   renameChat: (id: string, name: string) => void;
   deleteChat: (id: string) => void;
+  // When reading a book (Map book / Atlas), the current page is injected so the AI can
+  // answer "what does this mean?" / "explain differently" grounded in what's on screen.
+  readingContext?: string;
+  contextLabel?: string;
 }
 
-const SYSTEM = 'You are a Socratic programming tutor. DO NOT give direct answers. DO NOT write code for the user. Instead, ask probing questions that lead the user to figure out the answer themselves. Keep your responses short and concise.';
-
-export default function SocraticDrawer({ isOpen, onClose, studyName, chats, activeChatId, setActiveChatId, setChatMessages, addChat, renameChat, deleteChat }: Props) {
+export default function SocraticDrawer({ isOpen, onClose, studyName, chats, activeChatId, setActiveChatId, setChatMessages, addChat, renameChat, deleteChat, readingContext, contextLabel }: Props) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
+  const [mode, setMode] = useState<AIMode>('socratic');
+
+  // Load the saved teaching mode when the drawer first opens.
+  useEffect(() => { if (isOpen) getAIMode().then(setMode); }, [isOpen]);
+
+  const changeMode = (m: AIMode) => { setMode(m); setAIMode(m); };
 
   const chat = chats.find(c => c.id === activeChatId) ?? chats[0];
 
@@ -36,7 +44,9 @@ export default function SocraticDrawer({ isOpen, onClose, studyName, chats, acti
       // cap length so a long chat stays affordable.
       const firstUser = base.findIndex(m => m.role === 'user');
       const convo = base.slice(firstUser < 0 ? 0 : firstUser).slice(-40);
-      const reply = await askAIChat(SYSTEM, convo);
+      // Grounded in the book page when reading; otherwise scoped to the study.
+      const system = readingContext ? `${systemForMode(mode)}\n\n${readingContext}` : systemForMode(mode, studyName);
+      const reply = await askAIChat(system, convo);
       setChatMessages(chat.id, [...base, { role: 'assistant', text: reply }]);
     } catch (e: any) {
       setChatMessages(chat.id, [...base, { role: 'assistant', text: `Error: ${e.message}` }]);
@@ -59,11 +69,26 @@ export default function SocraticDrawer({ isOpen, onClose, studyName, chats, acti
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
           <span style={{ color: 'var(--pink)', fontSize: '14px' }}><i className="fa-solid fa-command"></i></span>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--text)' }}>Socratic Tutor</div>
-            <div style={{ fontSize: '10px', color: 'var(--text3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{studyName}</div>
+            <div style={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--text)' }}>{mode === 'tutor' ? 'AI Tutor' : 'Socratic Tutor'}</div>
+            <div style={{ fontSize: '10px', color: contextLabel ? 'var(--book-accent, #7ee787)' : 'var(--text3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={contextLabel ?? studyName}>{contextLabel ? `📖 ${contextLabel}` : studyName}</div>
           </div>
         </div>
         <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: '14px' }}><i className="fa-solid fa-xmark"></i></button>
+      </div>
+
+      {/* Teaching-mode toggle: Socratic (asks questions) vs Tutor (gives answers + reasoning) */}
+      <div style={{ display: 'flex', gap: 4, padding: '8px 12px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        {([['socratic', 'Socratic', 'Guides with questions'], ['tutor', 'Tutor', 'Answers + explains why']] as const).map(([m, lbl, hint]) => (
+          <button key={m} onClick={() => changeMode(m)} title={hint} style={{
+            flex: 1, fontSize: 11, fontFamily: 'var(--mono)', padding: '6px 8px', borderRadius: 3, cursor: 'pointer', lineHeight: 1.25,
+            background: mode === m ? 'color-mix(in srgb, var(--pink) 18%, transparent)' : 'var(--bg2)',
+            color: mode === m ? 'var(--text)' : 'var(--text3)',
+            border: `1px solid ${mode === m ? 'color-mix(in srgb, var(--pink) 45%, transparent)' : 'var(--border)'}`, fontWeight: mode === m ? 700 : 400,
+          }}>
+            {lbl}
+            <div style={{ fontSize: 9, fontWeight: 400, opacity: 0.75, marginTop: 1 }}>{hint}</div>
+          </button>
+        ))}
       </div>
 
       {/* Chat tabs (max 3 per study) */}

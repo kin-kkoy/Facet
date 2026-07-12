@@ -1,0 +1,9 @@
+{
+  "id": "game",
+  "label": "Game Dev (C#)",
+  "color": "#c678dd",
+  "icon": "fa-solid fa-gamepad",
+  "lane": 620,
+  "side": 1,
+  "order": 3
+}

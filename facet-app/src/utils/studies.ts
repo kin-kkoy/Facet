@@ -4,7 +4,7 @@
 // utils/progress.ts. On first run we migrate any existing single-buffer lab files
 // (utils/files.ts) into the first study so nothing is lost.
 
-import { loadFiles, type LabFile } from './files';
+import { loadFiles, baseName, type LabFile } from './files';
 export type { LabFile };
 
 export interface ChatMessage { role: 'user' | 'assistant'; text: string; }
@@ -31,7 +31,7 @@ export function newChat(name = 'Chat 1'): Chat {
   return { id: uid('chat'), name, messages: [{ role: 'assistant', text: GREETING }] };
 }
 export function newStudy(name: string, files?: LabFile[], activeFileId?: string): Study {
-  const seed = files && files.length ? files : [{ id: uid('file'), name: 'Program.cs', content: STARTER }];
+  const seed = files && files.length ? files : [{ id: uid('file'), name: 'Program.cs', path: 'Program.cs', content: STARTER }];
   const chat = newChat();
   return {
     id: uid('study'), name,
@@ -67,7 +67,10 @@ function sanitizeStudy(raw: any): Study | null {
   if (!raw || typeof raw.id !== 'string') return null;
   const files: LabFile[] = Array.isArray(raw.files)
     ? raw.files.filter((f: any) => f && typeof f.id === 'string' && typeof f.content === 'string')
-        .map((f: any) => ({ id: f.id, name: typeof f.name === 'string' ? f.name : 'Untitled.cs', content: f.content }))
+        .map((f: any) => {
+          const path = typeof f.path === 'string' && f.path ? f.path : (typeof f.name === 'string' ? f.name : 'Untitled.cs');
+          return { id: f.id, name: baseName(path), path, content: f.content };
+        })
     : [];
   if (!files.length) return null;
   let chats: Chat[] = Array.isArray(raw.chats) ? raw.chats.map(sanitizeChat).filter(Boolean) as Chat[] : [];

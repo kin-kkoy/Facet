@@ -1,0 +1,9 @@
+{
+  "id": "backend",
+  "label": "Backend / Web .NET",
+  "color": "#98c379",
+  "icon": "fa-solid fa-server",
+  "lane": -600,
+  "side": -1,
+  "order": 1
+}

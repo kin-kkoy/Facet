@@ -1,0 +1,8 @@
+{
+  "title": "AndastandC# — Skill Tree",
+  "version": "2.0",
+  "dotnet": "10 (LTS)",
+  "csharp": "14",
+  "updated": "2026-07",
+  "note": "Big nodes = chapters (modules). Small nodes = topics (day-blocks). Diamonds = crossroads. Hexagons = checkpoints / project defenses. Progress is tracked by the app, not stored here."
+}

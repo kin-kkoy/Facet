@@ -1,0 +1,9 @@
+{
+  "id": "cloud",
+  "label": "Cloud & DevOps (Azure)",
+  "color": "#e5c07b",
+  "icon": "fa-solid fa-cloud",
+  "lane": 0,
+  "side": -1,
+  "order": 2
+}

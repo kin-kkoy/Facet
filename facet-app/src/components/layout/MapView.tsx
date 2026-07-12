@@ -1,12 +1,16 @@
 import { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react';
 import {
-  loadCurriculum, layout, statusOf, topicsComplete,
-  type Curriculum, type LaidOutNode, type RawNode, type Status,
+  loadCurriculum, layout, statusOf, topicsComplete, recommendNext, roadsForCrossroad,
+  type Curriculum, type LaidOutNode, type RawNode, type Status, type Recommendation, type RoadOption,
 } from '../../utils/curriculum';
-import { loadCompleted, saveCompleted } from '../../utils/progress';
+import { loadCompleted, saveCompleted, loadArrowOn, saveArrowOn, loadRoads, saveRoads } from '../../utils/progress';
+import { loadAtlas, atlasPageIndex, type Atlas } from '../../utils/atlas';
 import { handoffPrompt } from '../../utils/handoff';
+import NewNodeModal from '../modals/NewNodeModal';
 
-interface Props { onLoadExample?: (code: string, label: string) => void; }
+const ARROW_COLOR = '#ff3d81'; // distinct, solid — not any branch color
+
+interface Props { onLoadExample?: (code: string, label: string) => void; onOpenAtlas?: (pageId: string) => void; }
 
 const diamond = (x: number, y: number, s: number) => `${x},${y - s} ${x + s},${y} ${x},${y + s} ${x - s},${y}`;
 const hexagon = (x: number, y: number, s: number) => {
@@ -19,11 +23,13 @@ const radiusOf = (n: LaidOutNode) => n.kind === 'chapter' ? 30 : n.kind === 'cro
 
 const INIT = { x: 520, y: 360, z: 0.72 };
 
-export default function MapView({ onLoadExample }: Props) {
+export default function MapView({ onLoadExample, onOpenAtlas }: Props) {
   const [cur, setCur] = useState<Curriculum | null>(null);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<string | null>(null);
   const [zoom, setZoom] = useState(INIT.z);
+  const [arrowOn, setArrowOn] = useState(false);
+  const [roads, setRoads] = useState<Record<string, string>>({});
 
   // The camera (pan x/y + zoom z) is the SINGLE source of truth in a ref, applied by
   // driving the SVG's `viewBox` — NOT a <g> transform. WebKitGTK deferred paints when
@@ -48,8 +54,19 @@ export default function MapView({ onLoadExample }: Props) {
     svg.setAttribute('viewBox', `${-v.x / v.z} ${-v.y / v.z} ${w / v.z} ${h / v.z}`);
   }, []);
 
-  useEffect(() => { loadCurriculum().then(setCur).catch(e => console.error('curriculum load failed', e)); }, []);
+  const reloadCur = useCallback(() => { loadCurriculum().then(setCur).catch(e => console.error('curriculum load failed', e)); }, []);
+  useEffect(() => { reloadCur(); }, [reloadCur]);
   useEffect(() => { loadCompleted().then(setCompleted); }, []);
+  const [newNodeOpen, setNewNodeOpen] = useState(false);
+  useEffect(() => { loadArrowOn().then(setArrowOn); loadRoads().then(setRoads); }, []);
+  const [atlas, setAtlas] = useState<Atlas | null>(null);
+  useEffect(() => { loadAtlas().then(setAtlas); }, []);
+  const atlasIndex = useMemo(() => (atlas ? atlasPageIndex(atlas) : null), [atlas]);
+
+  const toggleArrow = useCallback(() => setArrowOn(v => { const next = !v; saveArrowOn(next); return next; }), []);
+  const chooseRoad = useCallback((crossroadId: string, roadId: string) => {
+    setRoads(prev => { const next = { ...prev, [crossroadId]: roadId }; saveRoads(next); return next; });
+  }, []);
 
   const built = useMemo(() => (cur ? layout(cur) : null), [cur]);
   const byId = useMemo(() => new Map((cur?.nodes ?? []).map(n => [n.id, n] as [string, RawNode])), [cur]);
@@ -58,6 +75,12 @@ export default function MapView({ onLoadExample }: Props) {
     if (cur) for (const n of cur.nodes) m.set(n.id, statusOf(n.id, byId, completed));
     return m;
   }, [cur, byId, completed]);
+
+  // The next best action. Recomputed only when the curriculum, progress or a road
+  // choice changes — never on pan/zoom — so the arrow is cheap to render.
+  const rec: Recommendation = useMemo(
+    () => (cur ? recommendNext(cur, completed, roads) : { type: 'none' }),
+    [cur, completed, roads]);
 
   const toggleComplete = useCallback((id: string) => {
     setCompleted(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); saveCompleted(next); return next; });
@@ -153,6 +176,37 @@ export default function MapView({ onLoadExample }: Props) {
   const doneChapters = chapters.filter(c => completed.has(c.id)).length;
   const showTopicLabels = zoom >= 0.55;
 
+  // Guiding Arrow: the node to point at, and whether to show the road picker.
+  const arrowTargetNode = arrowOn
+    ? posOf.get(rec.type === 'node' ? rec.id : rec.type === 'fork' ? rec.crossroadId : '')
+    : undefined;
+  // Orient by which side the target branches off its anchor: a node offset left gets
+  // an arrow from the right (←), offset right gets one from the left (→); spine nodes
+  // (chapters/checkpoints/crossroads) sit centred, so keep the top-down arrow.
+  const arrowOrient: 'down' | 'left' | 'right' = (() => {
+    const t = arrowTargetNode;
+    if (!t) return 'down';
+    const anchorId = t.kind === 'topic' ? t.group : t.kind === 'project' ? t.prereqs?.[0] : undefined;
+    const anchorX = anchorId ? posOf.get(anchorId)?.x : undefined;
+    if (anchorX === undefined) return 'down';
+    const dx = t.x - anchorX;
+    return dx < -20 ? 'left' : dx > 20 ? 'right' : 'down';
+  })();
+  // The picker shows when the arrow hits an undecided fork, OR whenever the user
+  // selects a crossroad that has ≥2 roads (so they can re-pick their path).
+  const selCrossroadRoads = sel?.kind === 'crossroad' ? roadsForCrossroad(cur, completed, sel.id) : [];
+  const pickerCrossroadId = sel?.kind === 'crossroad' && selCrossroadRoads.length >= 2
+    ? sel.id
+    : (arrowOn && rec.type === 'fork' ? rec.crossroadId : null);
+  const pickerRoads: RoadOption[] = pickerCrossroadId
+    ? (rec.type === 'fork' && rec.crossroadId === pickerCrossroadId ? rec.roads : selCrossroadRoads)
+    : [];
+  const pickerLabel = pickerCrossroadId ? byId.get(pickerCrossroadId)?.label ?? '' : '';
+  // #3 companion: the Atlas pages mapped to the selected node.
+  const companionPages = sel
+    ? (sel.atlas ?? []).map((id) => atlasIndex?.get(id)).filter((p): p is NonNullable<typeof p> => !!p).map((p) => ({ id: p.id, title: p.title }))
+    : [];
+
   return (
     <div className="view active" style={{ display: 'flex', height: '100%', position: 'relative', overflow: 'hidden', background: '#09090b' }}>
       <svg ref={svgRef} className="map-svg" style={{ flex: 1, background: '#09090b', cursor: 'grab', display: 'block', touchAction: 'none' }}>
@@ -181,6 +235,8 @@ export default function MapView({ onLoadExample }: Props) {
               showLabel={n.kind !== 'topic' || showTopicLabels || n.id === selected}
               onClick={selectNode} onDouble={doubleNode} />
           ))}
+          {/* Guiding Arrow — drawn in world space so it pans/zooms with the map. */}
+          {arrowTargetNode && <GuidingArrow x={arrowTargetNode.x} y={arrowTargetNode.y} r={radiusOf(arrowTargetNode)} orient={arrowOrient} />}
         </g>
       </svg>
 
@@ -197,16 +253,95 @@ export default function MapView({ onLoadExample }: Props) {
         </div>
       </div>
 
-      <button onClick={resetView} style={{ position: 'absolute', top: 14, right: 16, ...btn }}>⟲ Reset view</button>
+      <div style={{ position: 'absolute', top: 14, right: 16, display: 'flex', gap: 8 }}>
+        <button onClick={() => setNewNodeOpen(true)} title="Create a new curriculum node"
+          style={{ ...btn, borderColor: '#7ee787', color: '#7ee787' }}>
+          <i className="fa-solid fa-plus" style={{ marginRight: 6 }} />New node
+        </button>
+        <button onClick={toggleArrow} title="Show an arrow to the next best topic/action"
+          style={{ ...btn, borderColor: arrowOn ? ARROW_COLOR : '#33333d', color: arrowOn ? ARROW_COLOR : '#e2e8f0', background: arrowOn ? ARROW_COLOR + '1f' : '#15151d' }}>
+          <i className="fa-solid fa-location-arrow" style={{ marginRight: 6 }} />Guiding Arrow
+        </button>
+        <button onClick={resetView} style={btn}>⟲ Reset view</button>
+      </div>
 
-      {/* floating detail popover */}
-      {sel && (
-        <div style={{ position: 'absolute', top: 70, right: 16, width: 320, maxHeight: 'calc(100% - 90px)', overflowY: 'auto', zIndex: 10, fontFamily: 'var(--mono)' }}>
-          <NodeDetail node={sel} status={statusMap.get(sel.id)!} byId={byId} statusMap={statusMap} completed={completed}
-            branchColor={cur.branches[sel.branch ?? 'core']?.color ?? '#61afef'}
-            onToggle={() => toggleComplete(sel.id)} onLoadExample={onLoadExample} onSelectPrereq={setSelected} onClose={() => setSelected(null)} />
+      <NewNodeModal isOpen={newNodeOpen} onClose={() => setNewNodeOpen(false)} curriculum={cur}
+        onCreated={() => { setNewNodeOpen(false); reloadCur(); }} />
+
+      {/* right-side stack: node detail, then the crossroad road-picker below it */}
+      {(sel || pickerCrossroadId) && (
+        <div style={{ position: 'absolute', top: 70, right: 16, width: 320, maxHeight: 'calc(100% - 90px)', overflowY: 'auto', zIndex: 10, fontFamily: 'var(--mono)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {sel && (
+            <NodeDetail node={sel} status={statusMap.get(sel.id)!} byId={byId} statusMap={statusMap} completed={completed}
+              branchColor={cur.branches[sel.branch ?? 'core']?.color ?? '#61afef'} companionPages={companionPages} onOpenAtlas={onOpenAtlas}
+              onToggle={() => toggleComplete(sel.id)} onLoadExample={onLoadExample} onSelectPrereq={setSelected} onClose={() => setSelected(null)} />
+          )}
+          {pickerCrossroadId && (
+            <RoadPicker label={pickerLabel} roads={pickerRoads} current={roads[pickerCrossroadId]}
+              onPick={(roadId) => chooseRoad(pickerCrossroadId, roadId)} />
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── static rainbow ring for a completed top-priority skill (no animation/glow) ── */
+const RainbowRing = memo(function RainbowRing({ cx, cy, radius }: { cx: number; cy: number; radius: number }) {
+  const SEG = 30;                       // arc segments sweeping the full circle
+  const step = (Math.PI * 2) / SEG;
+  const at = (a: number): [number, number] => [cx + radius * Math.cos(a), cy + radius * Math.sin(a)];
+  const segs = [];
+  for (let i = 0; i < SEG; i++) {
+    const a0 = i * step, a1 = (i + 1) * step + 0.012; // tiny overlap so segments don't gap
+    const [x0, y0] = at(a0), [x1, y1] = at(a1);
+    segs.push(<path key={i} d={`M ${x0.toFixed(1)} ${y0.toFixed(1)} A ${radius} ${radius} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`}
+      fill="none" stroke={`hsl(${Math.round((i / SEG) * 360)} 85% 55%)`} strokeWidth={3.5} strokeLinecap="butt" />);
+  }
+  return <g style={{ pointerEvents: 'none' }}>{segs}</g>;
+});
+
+/* ── the guiding arrow: a solid, thick arrow pointing at the target from the
+   side it branches off (left/right), or from above for spine nodes ── */
+const GuidingArrow = memo(function GuidingArrow({ x, y, r, orient }: { x: number; y: number; r: number; orient: 'down' | 'left' | 'right' }) {
+  const gap = 6, headLen = 16, headW = 24, shaftW = 9, shaftLen = 26;
+  // tip point (near the node edge) + the unit direction the arrow points.
+  let tx = x, ty = y - r - gap, dx = 0, dy = 1;            // down: from above, points at node
+  if (orient === 'left') { tx = x + r + gap; ty = y; dx = -1; dy = 0; }   // from the right, points left ←
+  else if (orient === 'right') { tx = x - r - gap; ty = y; dx = 1; dy = 0; } // from the left, points right →
+  const bx = -dx, by = -dy;          // backward (tail direction)
+  const px = -dy, py = dx;           // perpendicular (arrow width axis)
+  const bcx = tx + bx * headLen, bcy = ty + by * headLen;       // head↔shaft junction
+  const scx = bcx + bx * shaftLen, scy = bcy + by * shaftLen;   // shaft tail
+  const P = (cx: number, cy: number, w: number) => `${(cx + px * w).toFixed(1)},${(cy + py * w).toFixed(1)}`;
+  const pts = [
+    `${tx.toFixed(1)},${ty.toFixed(1)}`,          // tip
+    P(bcx, bcy, headW / 2), P(bcx, bcy, shaftW / 2),
+    P(scx, scy, shaftW / 2), P(scx, scy, -shaftW / 2),
+    P(bcx, bcy, -shaftW / 2), P(bcx, bcy, -headW / 2),
+  ].join(' ');
+  return <polygon points={pts} fill={ARROW_COLOR} stroke="#0b0b0e" strokeWidth={1.5} strokeLinejoin="round" style={{ pointerEvents: 'none' }} />;
+});
+
+/* ── crossroad road picker (sits under the node detail) ── */
+function RoadPicker({ label, roads, current, onPick }: { label: string; roads: RoadOption[]; current?: string; onPick: (roadId: string) => void; }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, border: `1px solid ${ARROW_COLOR}66`, borderTop: `3px solid ${ARROW_COLOR}`, borderRadius: 6, padding: '14px 16px', background: 'rgba(12,12,15,0.97)', boxShadow: '0 12px 40px rgba(0,0,0,0.5)' }}>
+      <div style={{ fontSize: 9, letterSpacing: 2, color: ARROW_COLOR }}>CROSSROAD · {label}</div>
+      <div style={{ fontSize: 11, color: '#94a3b8' }}>Choose your path — the arrow will follow it:</div>
+      {roads.map((rd, i) => {
+        const active = rd.id === current;
+        return (
+          <button key={rd.id} onClick={() => onPick(rd.id)} style={{
+            ...btn, textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8,
+            borderColor: active ? rd.color : rd.color + '66', color: active ? rd.color : '#e2e8f0',
+            background: active ? rd.color + '22' : '#15151d',
+          }}>
+            <span style={{ width: 9, height: 9, borderRadius: 2, background: rd.color, flexShrink: 0 }} />
+            Road {i + 1} · {rd.label}{active ? '  ✓' : ''}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -237,7 +372,9 @@ const NodeShape = memo(function NodeShape({ node, status, selected, showLabel, o
 
   return (
     <g style={{ cursor: 'pointer', opacity: selected ? 1 : groupOpacity }} onClick={(e) => { e.stopPropagation(); onClick(node.id); }} onDoubleClick={(e) => { e.stopPropagation(); onDouble(node.id); }}>
-      {selected && <circle cx={node.x} cy={node.y} r={r + 8} fill="none" stroke={node.color} strokeWidth={1.5} strokeDasharray="3 3" />}
+      {/* Top-priority skill, once mastered: a static rainbow ring to mark its importance. */}
+      {node.important && done && <RainbowRing cx={node.x} cy={node.y} radius={r + 7} />}
+      {selected && <circle cx={node.x} cy={node.y} r={r + 12} fill="none" stroke={node.color} strokeWidth={1.5} strokeDasharray="3 3" />}
       {shape}
       {node.icon && (
         <foreignObject x={node.x - r} y={node.y - (big ? 13 : 9)} width={r * 2} height={r} style={{ pointerEvents: 'none' }}>
@@ -256,9 +393,10 @@ const NodeShape = memo(function NodeShape({ node, status, selected, showLabel, o
 });
 
 /* ── detail popover body ─────────────────────────────────────────── */
-function NodeDetail({ node, status, byId, statusMap, completed, branchColor, onToggle, onLoadExample, onSelectPrereq, onClose }: {
+function NodeDetail({ node, status, byId, statusMap, completed, branchColor, companionPages, onOpenAtlas, onToggle, onLoadExample, onSelectPrereq, onClose }: {
   node: RawNode; status: Status; byId: Map<string, RawNode>; statusMap: Map<string, Status>; completed: Set<string>;
-  branchColor: string; onToggle: () => void; onLoadExample?: (c: string, l: string) => void; onSelectPrereq: (id: string) => void; onClose: () => void;
+  branchColor: string; companionPages: { id: string; title: string }[]; onOpenAtlas?: (pageId: string) => void;
+  onToggle: () => void; onLoadExample?: (c: string, l: string) => void; onSelectPrereq: (id: string) => void; onClose: () => void;
 }) {
   const kindLabel: Record<string, string> = { chapter: 'CHAPTER', topic: 'TOPIC', crossroad: 'CROSSROAD', checkpoint: 'CHECKPOINT', project: 'PROJECT DEFENSE' };
   const statusColor = status === 'completed' ? '#22c55e' : status === 'available' ? branchColor : '#5c637a';
@@ -293,6 +431,18 @@ function NodeDetail({ node, status, byId, statusMap, completed, branchColor, onT
 
       {isChapter && !topicsDone && status !== 'completed' && (
         <div style={{ fontSize: 10, color: '#e5c07b' }}><i className="fa-solid fa-list-check" style={{ marginRight: 6 }} />Complete all topics to finish this chapter.</div>
+      )}
+
+      {companionPages.length > 0 && onOpenAtlas && (
+        <div>
+          <div style={{ fontSize: 9, letterSpacing: 1, color: '#5c637a', marginBottom: 4 }}><i className="fa-solid fa-book-open" style={{ marginRight: 6, color: '#ffd23f' }} />SYNTAX COMPANION</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {companionPages.map((p) => (
+              <button key={p.id} onClick={() => onOpenAtlas(p.id)} title="Open in the Syntax Atlas"
+                style={{ ...btn, fontSize: 10, padding: '5px 9px', borderColor: '#ffd23f55', color: '#ffd23f' }}>{p.title}</button>
+            ))}
+          </div>
+        </div>
       )}
 
       {status !== 'locked' && (node.kind === 'checkpoint' || node.kind === 'project') && (

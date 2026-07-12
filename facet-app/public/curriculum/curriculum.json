@@ -11,22 +11,34 @@
     "core": {
       "label": "C# Core",
       "color": "#61afef",
-      "icon": "fa-solid fa-microchip"
+      "icon": "fa-solid fa-microchip",
+      "lane": 0,
+      "side": 1,
+      "order": 0
     },
     "backend": {
       "label": "Backend / Web .NET",
       "color": "#98c379",
-      "icon": "fa-solid fa-server"
+      "icon": "fa-solid fa-server",
+      "lane": -600,
+      "side": -1,
+      "order": 1
     },
     "cloud": {
       "label": "Cloud & DevOps (Azure)",
       "color": "#e5c07b",
-      "icon": "fa-solid fa-cloud"
+      "icon": "fa-solid fa-cloud",
+      "lane": 0,
+      "side": -1,
+      "order": 2
     },
     "game": {
       "label": "Game Dev (C#)",
       "color": "#c678dd",
-      "icon": "fa-solid fa-gamepad"
+      "icon": "fa-solid fa-gamepad",
+      "lane": 620,
+      "side": 1,
+      "order": 3
     }
   },
   "nodes": [
@@ -64,6 +76,20 @@
         "m01-t3",
         "m01-t4",
         "m01-t5"
+      ],
+      "atlas": [
+        "01-introduction",
+        "02-program-structure",
+        "03-variables",
+        "04-types",
+        "05-operators",
+        "06-control-flow",
+        "07-methods",
+        "08-parameters",
+        "09-scope",
+        "10-namespaces",
+        "11-files",
+        "12-exceptions"
       ]
     },
     {
@@ -73,7 +99,11 @@
       "order": 1,
       "label": "Value vs reference",
       "summary": "struct (copied) vs class (shared); stack vs heap; == semantics; boxing.",
-      "example": "struct P { public int X; }\nclass C { public int X; }\n\nvar a = new P { X = 1 };\nvar b = a;        // struct: b is a copy\nb.X = 99;\n\nvar c = new C { X = 1 };\nvar d = c;        // class: d is the same object\nd.X = 99;\n\nSystem.Console.WriteLine($\"struct a.X={a.X} (unchanged), class c.X={c.X} (changed)\");"
+      "example": "struct P { public int X; }\nclass C { public int X; }\n\nvar a = new P { X = 1 };\nvar b = a;        // struct: b is a copy\nb.X = 99;\n\nvar c = new C { X = 1 };\nvar d = c;        // class: d is the same object\nd.X = 99;\n\nSystem.Console.WriteLine($\"struct a.X={a.X} (unchanged), class c.X={c.X} (changed)\");",
+      "atlas": [
+        "04-types",
+        "22-structs"
+      ]
     },
     {
       "id": "m01-t2",
@@ -82,7 +112,11 @@
       "order": 2,
       "label": "Nullability & patterns",
       "summary": "Nullable reference types, switch expressions, property/relational patterns — no if-chains.",
-      "example": "string Describe(int? n) => n switch\n{\n    null         => \"nothing\",\n    < 0          => \"negative\",\n    0            => \"zero\",\n    > 0 and < 10 => \"small\",\n    _            => \"big\"\n};\n\nforeach (int? x in new int?[] { null, -3, 0, 7, 42 })\n    System.Console.WriteLine($\"{x}: {Describe(x)}\");"
+      "example": "string Describe(int? n) => n switch\n{\n    null         => \"nothing\",\n    < 0          => \"negative\",\n    0            => \"zero\",\n    > 0 and < 10 => \"small\",\n    _            => \"big\"\n};\n\nforeach (int? x in new int?[] { null, -3, 0, 7, 42 })\n    System.Console.WriteLine($\"{x}: {Describe(x)}\");",
+      "atlas": [
+        "33-nullable-reference-types",
+        "34-pattern-matching"
+      ]
     },
     {
       "id": "m01-t3",
@@ -91,7 +125,11 @@
       "order": 3,
       "label": "Methods & the C-corner",
       "summary": "Try-pattern, ref/out, optional & named params, extension methods, tuples.",
-      "example": "bool TryHalve(int n, out int result)\n{\n    result = n / 2;\n    return n % 2 == 0;\n}\n\n(int min, int max) Range(int[] a) => (a.Min(), a.Max());\n\nvar ok = TryHalve(10, out int h);\nvar (lo, hi) = Range(new[] { 5, 2, 9, 1 });\nSystem.Console.WriteLine($\"halve ok={ok} h={h}; range {lo}..{hi}\");"
+      "example": "bool TryHalve(int n, out int result)\n{\n    result = n / 2;\n    return n % 2 == 0;\n}\n\n(int min, int max) Range(int[] a) => (a.Min(), a.Max());\n\nvar ok = TryHalve(10, out int h);\nvar (lo, hi) = Range(new[] { 5, 2, 9, 1 });\nSystem.Console.WriteLine($\"halve ok={ok} h={h}; range {lo}..{hi}\");",
+      "atlas": [
+        "07-methods",
+        "08-parameters"
+      ]
     },
     {
       "id": "m01-t4",
@@ -100,7 +138,11 @@
       "order": 4,
       "label": "Errors & IO",
       "summary": "Typed exceptions (never bare catch), exit codes, robust CLI, first xUnit tests.",
-      "example": null
+      "example": null,
+      "atlas": [
+        "12-exceptions",
+        "49-file-io"
+      ]
     },
     {
       "id": "m01-t5",
@@ -143,6 +185,20 @@
         "m02-t2",
         "m02-t3",
         "m02-t4"
+      ],
+      "important": true,
+      "atlas": [
+        "13-classes",
+        "14-objects",
+        "15-constructors",
+        "16-properties",
+        "17-encapsulation",
+        "18-inheritance",
+        "19-polymorphism",
+        "20-interfaces",
+        "21-records",
+        "22-structs",
+        "23-enums"
       ]
     },
     {
@@ -152,7 +208,11 @@
       "order": 1,
       "label": "Encapsulation & properties",
       "summary": "Access modifiers, auto-properties, init-only, invariants over public fields.",
-      "example": null
+      "example": null,
+      "atlas": [
+        "16-properties",
+        "17-encapsulation"
+      ]
     },
     {
       "id": "m02-t2",
@@ -161,7 +221,11 @@
       "order": 2,
       "label": "Inheritance & polymorphism",
       "summary": "abstract/virtual/override, base calls, when to prefer composition.",
-      "example": "interface IShape { double Area(); }\n\nabstract class Shape : IShape\n{\n    public string Name = \"\";\n    public abstract double Area();\n}\n\nclass Circle : Shape\n{\n    public double R;\n    public Circle(double r) { R = r; Name = \"circle\"; }\n    public override double Area() => 3.14159 * R * R;\n}\n\nclass Square : Shape\n{\n    public double S;\n    public Square(double s) { S = s; Name = \"square\"; }\n    public override double Area() => S * S;\n}\n\nShape[] shapes = { new Circle(2), new Square(3) };\nforeach (var s in shapes)\n    System.Console.WriteLine($\"{s.Name}: {s.Area():F2}\");"
+      "example": "interface IShape { double Area(); }\n\nabstract class Shape : IShape\n{\n    public string Name = \"\";\n    public abstract double Area();\n}\n\nclass Circle : Shape\n{\n    public double R;\n    public Circle(double r) { R = r; Name = \"circle\"; }\n    public override double Area() => 3.14159 * R * R;\n}\n\nclass Square : Shape\n{\n    public double S;\n    public Square(double s) { S = s; Name = \"square\"; }\n    public override double Area() => S * S;\n}\n\nShape[] shapes = { new Circle(2), new Square(3) };\nforeach (var s in shapes)\n    System.Console.WriteLine($\"{s.Name}: {s.Area():F2}\");",
+      "atlas": [
+        "18-inheritance",
+        "19-polymorphism"
+      ]
     },
     {
       "id": "m02-t3",
@@ -170,7 +234,10 @@
       "order": 3,
       "label": "Interfaces & abstraction",
       "summary": "Program to interfaces, default members, dependency-friendly design.",
-      "example": null
+      "example": null,
+      "atlas": [
+        "20-interfaces"
+      ]
     },
     {
       "id": "m02-t4",
@@ -179,7 +246,11 @@
       "order": 4,
       "label": "Records & value equality",
       "summary": "record vs class, with-expressions, immutability, value-based equality.",
-      "example": null
+      "example": null,
+      "atlas": [
+        "21-records",
+        "31-equality"
+      ]
     },
     {
       "id": "cp2",
@@ -212,6 +283,18 @@
         "m03-t1",
         "m03-t2",
         "m03-t3"
+      ],
+      "important": true,
+      "atlas": [
+        "24-arrays",
+        "25-list",
+        "26-dictionary",
+        "27-hashset",
+        "28-queue",
+        "29-stack",
+        "30-generics",
+        "31-equality",
+        "32-iterators"
       ]
     },
     {
@@ -221,7 +304,15 @@
       "order": 1,
       "label": "The core collections",
       "summary": "List, Dictionary, HashSet, Queue/Stack — Big-O and the right tool.",
-      "example": "var seen = new HashSet<int>();\nvar counts = new Dictionary<string, int>();\n\nforeach (var w in new[] { \"a\", \"b\", \"a\", \"c\", \"b\", \"a\" })\n    counts[w] = counts.TryGetValue(w, out var n) ? n + 1 : 1;\n\nforeach (var kv in counts)\n    System.Console.WriteLine($\"{kv.Key} => {kv.Value}\");"
+      "example": "var seen = new HashSet<int>();\nvar counts = new Dictionary<string, int>();\n\nforeach (var w in new[] { \"a\", \"b\", \"a\", \"c\", \"b\", \"a\" })\n    counts[w] = counts.TryGetValue(w, out var n) ? n + 1 : 1;\n\nforeach (var kv in counts)\n    System.Console.WriteLine($\"{kv.Key} => {kv.Value}\");",
+      "atlas": [
+        "24-arrays",
+        "25-list",
+        "26-dictionary",
+        "27-hashset",
+        "28-queue",
+        "29-stack"
+      ]
     },
     {
       "id": "m03-t2",
@@ -230,7 +321,10 @@
       "order": 2,
       "label": "Generics & constraints",
       "summary": "Generic methods/types, where-constraints, why generics beat object.",
-      "example": null
+      "example": null,
+      "atlas": [
+        "30-generics"
+      ]
     },
     {
       "id": "m03-t3",
@@ -239,7 +333,11 @@
       "order": 3,
       "label": "Iterators & equality",
       "summary": "yield return, IEnumerable, IEquatable, custom comparers.",
-      "example": null
+      "example": null,
+      "atlas": [
+        "31-equality",
+        "32-iterators"
+      ]
     },
     {
       "id": "cp3",
@@ -271,7 +369,15 @@
       "topics": [
         "m04-t1",
         "m04-t2",
-        "m04-t3"
+        "m04-t3",
+        "m04-t4"
+      ],
+      "important": true,
+      "atlas": [
+        "40-linq",
+        "39-lambdas",
+        "36-extension-methods",
+        "35-expression-bodied-members"
       ]
     },
     {
@@ -281,7 +387,11 @@
       "order": 1,
       "label": "The core five + pipelines",
       "summary": "Where, Select, OrderBy, First/Single, Aggregate — composing pipelines.",
-      "example": "int[] nums = { 5, 2, 8, 1, 9, 3, 7 };\n\nvar top3odds = nums.Where(n => n % 2 == 1)\n                   .OrderByDescending(n => n)\n                   .Take(3)\n                   .ToList();\nvar sum = nums.Where(n => n > 4).Sum();\n\nSystem.Console.WriteLine($\"top-3 odds: {string.Join(\", \", top3odds)}; sum>4: {sum}\");"
+      "example": "int[] nums = { 5, 2, 8, 1, 9, 3, 7 };\n\nvar top3odds = nums.Where(n => n % 2 == 1)\n                   .OrderByDescending(n => n)\n                   .Take(3)\n                   .ToList();\nvar sum = nums.Where(n => n > 4).Sum();\n\nSystem.Console.WriteLine($\"top-3 odds: {string.Join(\", \", top3odds)}; sum>4: {sum}\");",
+      "atlas": [
+        "40-linq",
+        "39-lambdas"
+      ]
     },
     {
       "id": "m04-t2",
@@ -290,7 +400,10 @@
       "order": 2,
       "label": "Deferred execution",
       "summary": "The interview day: lazy evaluation, multiple enumeration, ToList timing.",
-      "example": null
+      "example": null,
+      "atlas": [
+        "40-linq"
+      ]
     },
     {
       "id": "m04-t3",
@@ -299,7 +412,23 @@
       "order": 3,
       "label": "GroupBy, Join, SelectMany",
       "summary": "Grouping, joining sequences, flattening — real reporting queries.",
-      "example": null
+      "example": null,
+      "atlas": [
+        "40-linq"
+      ]
+    },
+    {
+      "id": "m04-t4",
+      "kind": "topic",
+      "group": "m04",
+      "order": 4,
+      "label": "Delegates & events",
+      "atlas": [
+        "37-delegates",
+        "38-events"
+      ],
+      "example": null,
+      "summary": "Delegates, events and the publish/subscribe pattern — the callback types lambdas, LINQ and async all build on."
     },
     {
       "id": "cp4",
@@ -344,6 +473,13 @@
         "m05-t1",
         "m05-t2",
         "m05-t3"
+      ],
+      "important": true,
+      "atlas": [
+        "41-tasks",
+        "42-async-await",
+        "43-cancellation",
+        "44-parallelism"
       ]
     },
     {
@@ -353,7 +489,11 @@
       "order": 1,
       "label": "Tasks & await",
       "summary": "Task vs Thread, await mechanics, async all the way.",
-      "example": null
+      "example": null,
+      "atlas": [
+        "41-tasks",
+        "42-async-await"
+      ]
     },
     {
       "id": "m05-t2",
@@ -362,7 +502,11 @@
       "order": 2,
       "label": "Cancellation & parallelism",
       "summary": "CancellationToken, Task.WhenAll, Parallel, throttling.",
-      "example": null
+      "example": null,
+      "atlas": [
+        "43-cancellation",
+        "44-parallelism"
+      ]
     },
     {
       "id": "m05-t3",
@@ -371,7 +515,10 @@
       "order": 3,
       "label": "Async gotchas",
       "summary": "Deadlocks, async void, ConfigureAwait, exception flow.",
-      "example": null
+      "example": null,
+      "atlas": [
+        "42-async-await"
+      ]
     },
     {
       "id": "cp5",
@@ -421,6 +568,12 @@
         "m06-t3",
         "m06-t4",
         "m06-t5"
+      ],
+      "important": true,
+      "atlas": [
+        "53-dependency-injection",
+        "52-configuration",
+        "51-logging"
       ]
     },
     {
@@ -439,7 +592,11 @@
       "order": 2,
       "label": "Middleware & DI",
       "summary": "Middleware order, service lifetimes (transient/scoped/singleton).",
-      "example": null
+      "example": null,
+      "important": true,
+      "atlas": [
+        "53-dependency-injection"
+      ]
     },
     {
       "id": "m06-t3",
@@ -500,6 +657,10 @@
         "m07-t2",
         "m07-t3",
         "m07-t4"
+      ],
+      "important": true,
+      "atlas": [
+        "50-serialization"
       ]
     },
     {
@@ -641,6 +802,12 @@
         "m09-t1",
         "m09-t2",
         "m09-t3"
+      ],
+      "atlas": [
+        "45-dotnet-cli",
+        "46-projects-csproj",
+        "47-solutions-sln",
+        "48-nuget"
       ]
     },
     {
@@ -1144,7 +1311,9 @@
         "u01-t1",
         "u01-t2",
         "u01-t3"
-      ]
+      ],
+      "laneOffset": -280,
+      "side": -1
     },
     {
       "id": "u01-t1",
@@ -1191,7 +1360,9 @@
         "u02-t1",
         "u02-t2",
         "u02-t3"
-      ]
+      ],
+      "laneOffset": -280,
+      "side": -1
     },
     {
       "id": "u02-t1",
@@ -1231,7 +1402,9 @@
       "summary": "Build a small complete Unity game from a spec.",
       "prereqs": [
         "u02"
-      ]
+      ],
+      "laneOffset": -280,
+      "side": -1
     },
     {
       "id": "pg-unity",
@@ -1243,7 +1416,9 @@
       "defense": true,
       "prereqs": [
         "cpg1"
-      ]
+      ],
+      "laneOffset": -280,
+      "side": -1
     },
     {
       "id": "gd01",
@@ -1262,7 +1437,9 @@
         "gd01-t1",
         "gd01-t2",
         "gd01-t3"
-      ]
+      ],
+      "laneOffset": 280,
+      "side": 1
     },
     {
       "id": "gd01-t1",
@@ -1309,7 +1486,9 @@
         "gd02-t1",
         "gd02-t2",
         "gd02-t3"
-      ]
+      ],
+      "laneOffset": 280,
+      "side": 1
     },
     {
       "id": "gd02-t1",
@@ -1349,7 +1528,9 @@
       "summary": "Build a small complete Godot game from a spec.",
       "prereqs": [
         "gd02"
-      ]
+      ],
+      "laneOffset": 280,
+      "side": 1
     },
     {
       "id": "pg-godot",
@@ -1361,7 +1542,9 @@
       "defense": true,
       "prereqs": [
         "cpg2"
-      ]
+      ],
+      "laneOffset": 280,
+      "side": 1
     }
   ]
 }

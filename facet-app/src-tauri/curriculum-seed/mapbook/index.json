@@ -1,0 +1,58 @@
+{
+  "title": "AndastandC# — The Book",
+  "parts": [
+    {
+      "id": "start",
+      "title": "Start Here",
+      "pages": [
+        { "id": "00-how-to-use", "title": "How to Use This Book", "file": "00-how-to-use.md" },
+        { "id": "checkpoints-defenses", "title": "Checkpoints & Defenses", "file": "checkpoints-defenses.md" }
+      ]
+    },
+    {
+      "id": "core",
+      "title": "Core — The C# Spine",
+      "pages": [
+        { "id": "01-fundamentals", "title": "C# Fundamentals", "file": "01-fundamentals.md" },
+        { "id": "02-oop", "title": "Object-Oriented Programming", "file": "02-oop.md" },
+        { "id": "03-collections-generics", "title": "Collections & Generics", "file": "03-collections-generics.md" },
+        { "id": "04-linq", "title": "LINQ", "file": "04-linq.md" },
+        { "id": "05-async", "title": "Async / Await", "file": "05-async.md" }
+      ]
+    },
+    {
+      "id": "backend",
+      "title": "Backend — Web .NET",
+      "pages": [
+        { "id": "06-aspnet-core", "title": "ASP.NET Core", "file": "06-aspnet-core.md" },
+        { "id": "07-sql-efcore", "title": "SQL + EF Core", "file": "07-sql-efcore.md" },
+        { "id": "08-auth", "title": "Auth (AuthN + AuthZ)", "file": "08-auth.md" },
+        { "id": "09-deployment", "title": "Deployment", "file": "09-deployment.md" },
+        { "id": "10-capstone", "title": "Capstone", "file": "10-capstone.md" }
+      ]
+    },
+    {
+      "id": "cloud",
+      "title": "Cloud & DevOps — Azure",
+      "pages": [
+        { "id": "11-cloud-foundations", "title": "Cloud & Azure Foundations", "file": "11-cloud-foundations.md" },
+        { "id": "12-containers", "title": "Containers", "file": "12-containers.md" },
+        { "id": "13-azure-compute", "title": "Azure Compute", "file": "13-azure-compute.md" },
+        { "id": "14-storage-config", "title": "Storage & Config", "file": "14-storage-config.md" },
+        { "id": "15-cicd-iac", "title": "CI/CD & IaC", "file": "15-cicd-iac.md" },
+        { "id": "16-ai-cloud", "title": "AI-Integrated Cloud", "file": "16-ai-cloud.md" }
+      ]
+    },
+    {
+      "id": "game",
+      "title": "Game Dev (C#)",
+      "pages": [
+        { "id": "17-game-core", "title": "C# for Games", "file": "17-game-core.md" },
+        { "id": "18-unity-basics", "title": "Unity Basics", "file": "18-unity-basics.md" },
+        { "id": "19-unity-gameplay", "title": "Unity Gameplay", "file": "19-unity-gameplay.md" },
+        { "id": "20-godot-basics", "title": "Godot Basics", "file": "20-godot-basics.md" },
+        { "id": "21-godot-gameplay", "title": "Godot Gameplay", "file": "21-godot-gameplay.md" }
+      ]
+    }
+  ]
+}
